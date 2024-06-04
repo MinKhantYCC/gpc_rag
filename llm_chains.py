@@ -1,3 +1,6 @@
+__import__('pysqlite3')
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 from langchain.chains import StuffDocumentsChain, LLMChain, ConversationalRetrievalChain
 from langchain_community.embeddings import HuggingFaceInstructEmbeddings
 from langchain.chains.retrieval_qa.base import RetrievalQA
