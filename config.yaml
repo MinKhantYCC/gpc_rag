@@ -1,0 +1,10 @@
+model_path:
+  small: "./tinyllama-1.1b-chat-v1.0.Q5_K_M.gguf"
+
+model_type: "TinyLlama-1.1B-Chat-v1.0-GGUF"
+
+embeddings_path: "BAAI/bge-large-en-v1.5"
+
+model_config: {"max_new_tokens": 512, "temperature": 0, 'context_length': 4096, 'gpu_layers': 0}
+
+chat_history_path: "chat_sessions/"
