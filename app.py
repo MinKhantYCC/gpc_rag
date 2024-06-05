@@ -19,10 +19,16 @@ def set_send_input():
     st.session_state.send_input = True
     clear_input_field()
 
-def load_chain(chat_history):
+@st.cache_resource
+def load_chain(_chat_history):
     if st.session_state.pdf_chat == True:
-        return load_pdf_chat_chain(chat_history)
-    return load_normal_chain(chat_history)
+        return load_pdf_chat_chain(_chat_history)
+    return load_normal_chain(_chat_history)
+
+def delete_chat_session_history():
+    os.system(f"rm {os.curdir}\chat_sessions\{st.session_state.session_key}")
+    st.session_state.session_index_tracker = "new_session"
+    st.session_state.session_key = "new_session"
 
 def save_chat_history():
     if st.session_state.history != []:
@@ -35,9 +41,13 @@ def save_chat_history():
 def track_index():
     st.session_state.session_index_tracker = st.session_state.session_key
 
+def clear_cache():
+    st.cache_resource.clear()
+
 def toggle_pdf_chat():
     st.session_state.pdf_chat = True
     st.session_state.uploaded = True
+    clear_cache()
 
 def main():
     st.title("Multimodal Chat Apps")
@@ -63,6 +73,8 @@ def main():
     upload_pdf = st.sidebar.file_uploader("Upload pdf file", accept_multiple_files=True,
                                           type=['pdf'], key="pdf_upload",
                                           on_change=toggle_pdf_chat)
+    st.sidebar.button("Delete Chat Session", on_click=delete_chat_session_history)
+    st.sidebar.button("Clear Cache", on_click=clear_cache)
 
     if upload_pdf and st.session_state.uploaded:
         with st.spinner("Processing pdf...."):
