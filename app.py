@@ -19,7 +19,6 @@ def set_send_input():
     st.session_state.send_input = True
     clear_input_field()
 
-@st.cache_resource
 def load_chain(_chat_history):
     if st.session_state.pdf_chat == True:
         return load_pdf_chat_chain(_chat_history)
@@ -42,7 +41,7 @@ def track_index():
     st.session_state.session_index_tracker = st.session_state.session_key
 
 def clear_cache():
-    st.cache_resource.clear()
+    st.cache_data.clear()
 
 def toggle_pdf_chat():
     st.session_state.pdf_chat = True
