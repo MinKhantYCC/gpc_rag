@@ -1,15 +1,13 @@
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema.document import Document
 from llm_chains import load_vectordb, create_embeddings
+from langchain_community.document_loaders import PyPDFLoader
 import pypdfium2
 
 def get_pdf_texts(pdf_bytes):
-    return [extract_text_from_pdf(pdf_byte) for pdf_byte in pdf_bytes]
+    return [extract_text_from_pdf(pdf_byte.getvalue()) for pdf_byte in pdf_bytes]
 
 def extract_text_from_pdf(pdf_byte):
-    # with pypdfium2.PdfDocument(pdf_byte) as pdf_file:
-    #     return "\n".join(pdf_file.get_page(page_number).get_textpage().get_text_range()
-    #                      for page_number in range(len(pdf_file)))
     texts = []
     pdf_file = pypdfium2.PdfDocument(pdf_byte)
     for page_number in range(len(pdf_file)):
@@ -20,7 +18,7 @@ def extract_text_from_pdf(pdf_byte):
     return "\n".join(texts)
 
 def get_text_chunks(texts):
-    splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=50,
+    splitter = RecursiveCharacterTextSplitter(chunk_size=1024, chunk_overlap=50,
                                              separators=["\n", "\n\n"],)
     return splitter.split_text(texts)
 
@@ -32,7 +30,9 @@ def get_document_chunks(text_list):
     return documents
 
 def add_documents_to_db(pdf_bytes):
+    print("Adding Document to DB...")
     texts = get_pdf_texts(pdf_bytes)
     documents = get_document_chunks(texts)
     vector_db = load_vectordb(create_embeddings())
     vector_db.add_documents(documents)
+

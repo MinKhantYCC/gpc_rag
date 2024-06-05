@@ -1,14 +1,16 @@
-__import__('pysqlite3')
-import sys
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
-from langchain.chains import StuffDocumentsChain, LLMChain, ConversationalRetrievalChain
+from langchain.chains.llm import LLMChain
 from langchain_community.embeddings import HuggingFaceInstructEmbeddings
 from langchain.chains.retrieval_qa.base import RetrievalQA
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import PromptTemplate
 from langchain_community.llms.ctransformers import CTransformers
 from langchain_community.vectorstores import Chroma
-from prompt_template import memory_prompt_template
+
+from langchain.chains.retrieval import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_core.prompts import ChatPromptTemplate
+
+from prompt_template import memory_prompt_template, pdf_chat_prompt
 import chromadb
 import yaml
 from utils import download_large_file
@@ -43,10 +45,11 @@ def load_normal_chain(chathistory):
     return chatChain(chathistory)
 
 def load_vectordb(embeddings):
-    persistent_client = chromadb.PersistentClient("chroma_db")
+    # persistent_client = chromadb.PersistentClient("chroma_db")
     
     langchain_chroma = Chroma(
-        client=persistent_client,
+        # client=persistent_client,
+        persist_directory="chroma_db",
         collection_name="pdfs",
         embedding_function=embeddings,
     )
@@ -65,21 +68,34 @@ class chatChain:
                                   history=self.memory.chat_memory.messages,
                                   stop="<|user|>")
 
-def load_pdf_chat_chain(chat_history):    
-    return pdfChain(chat_history)
+def load_pdf_chat_chain(chat_history):
+    return pdfChatChain(chat_history)
 
-def load_retrieval_chain(llm, memory, vector_db):
-    return RetrievalQA.from_llm(llm=llm, memory=memory, retriever=vector_db.as_retriever())
+def load_retrieval_chain(llm, vector_db):
+    return RetrievalQA.from_llm(llm=llm, retriever=vector_db.as_retriever(search_kwargs={"k": config["chat_config"]["number_of_retrieved_documents"]}), verbose=True)
 
-class pdfChain:
+from operator import itemgetter
+def create_pdf_chat_runnable(llm, vector_db, prompt):
+    runnable = (
+        {
+        "context": itemgetter("human_input") | vector_db.as_retriever(search_kwargs={"k": config["chat_config"]["number_of_retrieved_documents"]}),
+        "human_input": itemgetter("human_input"),
+        "history" : itemgetter("history"),
+        }
+    | prompt | llm.bind(stop=["Human:"]) 
+    )
+    return runnable
+
+class pdfChatChain:
+
     def __init__(self, chat_history):
-        self.memory = create_chat_memory(chat_history)
-        self.vector_db = load_vectordb(create_embeddings())
+        vector_db = load_vectordb(create_embeddings())
         llm = create_llm()
-        # chat_prompt = create_prompt_from_template(memory_prompt_template)
-        self.llm_chain = load_retrieval_chain(llm, self.memory, self.vector_db)
+        #llm = load_ollama_model()
+        prompt = create_prompt_from_template(pdf_chat_prompt)
+        self.llm_chain = create_pdf_chat_runnable(llm, vector_db, prompt)
 
-    def run(self, user_input):
-        return self.llm_chain.run(query=user_input,
-                                  history=self.memory.chat_memory.messages,
-                                  stop="<|user|>")
+    def run(self, user_input, chat_history):
+        print("Pdf chat chain is running...")
+        memory = create_chat_memory(chat_history)
+        return self.llm_chain.invoke(input={"human_input" : user_input, "history" : memory.chat_memory.messages})

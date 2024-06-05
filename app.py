@@ -37,6 +37,7 @@ def track_index():
 
 def toggle_pdf_chat():
     st.session_state.pdf_chat = True
+    st.session_state.uploaded = True
 
 def main():
     st.title("Multimodal Chat Apps")
@@ -46,6 +47,7 @@ def main():
     chat_sessions = ["new_session"] + os.listdir(config['chat_history_path'])
     
     if "send_input" not in st.session_state:
+        st.session_state.uploaded = False
         st.session_state.session_key = "new_session"
         st.session_state.send_input = False
         st.session_state.user_question = ""
@@ -62,9 +64,10 @@ def main():
                                           type=['pdf'], key="pdf_upload",
                                           on_change=toggle_pdf_chat)
 
-    if upload_pdf:
+    if upload_pdf and st.session_state.uploaded:
         with st.spinner("Processing pdf...."):
             add_documents_to_db(upload_pdf)
+    st.session_state.uploaded = False
 
     if st.session_state.session_key != "new_session":
         st.session_state.history = load_chat_history_json(config['chat_history_path']+st.session_state.session_key)
@@ -80,9 +83,14 @@ def main():
     if send_button or st.session_state.send_input:
         if st.session_state.user_question != "":
             with chat_container:
-                # st.chat_message("user").write(st.session_state.user_question)
-                llm_response = llm_chain.run(st.session_state.user_question)
-                # st.chat_message("Bot").write(llm_response)
+                if st.session_state.pdf_chat:
+                    # st.chat_message("user").write(st.session_state.user_question)
+                    llm_response = llm_chain.run(st.session_state.user_question, chat_history)
+                    chat_history.add_user_message(st.session_state.user_question)
+                    chat_history.add_ai_message(llm_response)
+                    # st.chat_message("Bot").write(llm_response)
+                else:
+                    llm_response = llm_chain.run(st.session_state.user_question)
                 st.session_state.user_question = ""
     with chat_container:
         if chat_history.messages != []:
