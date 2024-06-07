@@ -49,7 +49,7 @@ def toggle_pdf_chat():
     clear_cache()
 
 def main():
-    st.title("Multimodal Chat Apps")
+    st.title("NoteBook Assistant")
     chat_container = st.container()
     st.sidebar.title("Chat Sessions")
     
@@ -68,7 +68,7 @@ def main():
     
     index = chat_sessions.index(st.session_state.session_index_tracker)
     st.sidebar.selectbox("Select a chat session", chat_sessions, key="session_key", index=index, on_change=track_index)
-    st.sidebar.toggle("PDF Chat", key="pdf_chat", value=False)
+    st.sidebar.toggle("Notebook", key="pdf_chat", value=False)
     upload_pdf = st.sidebar.file_uploader("Upload pdf file", accept_multiple_files=True,
                                           type=['pdf'], key="pdf_upload",
                                           on_change=toggle_pdf_chat)
@@ -87,9 +87,9 @@ def main():
 
     chat_history = StreamlitChatMessageHistory(key="history")
     llm_chain = load_chain(chat_history)
-    user_input = st.text_input("Type your message here: ", key="user_input", on_change=set_send_input)
+    user_input = st.text_input("Type your message here: ", key="user_input")
 
-    send_button = st.button("Send", key="send_button")
+    send_button = st.button("Send", key="send_button", on_click=set_send_input)
 
     if send_button or st.session_state.send_input:
         if st.session_state.user_question != "":
