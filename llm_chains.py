@@ -1,7 +1,3 @@
-__import__('pysqlite3')
-import sys
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
-
 from langchain.chains.llm import LLMChain
 from langchain_community.embeddings import HuggingFaceInstructEmbeddings
 from langchain.chains.retrieval_qa.base import RetrievalQA
@@ -42,11 +38,11 @@ def create_chat_memory(chat_history):
 def create_prompt_from_template(template):
     return PromptTemplate.from_template(template)
 
-def create_llm_chain(llm, chat_prompt, memory):
-    return LLMChain(llm=llm, prompt=chat_prompt, memory=memory)
+def create_llm_chain(llm, chat_prompt):
+    return LLMChain(llm=llm, prompt=chat_prompt)
 
-def load_normal_chain(chathistory):
-    return chatChain(chathistory)
+def load_normal_chain():
+    return chatChain()
 
 def load_vectordb(embeddings):
     # persistent_client = chromadb.PersistentClient("chroma_db")
@@ -61,19 +57,18 @@ def load_vectordb(embeddings):
     return langchain_chroma
 
 class chatChain:
-    def __init__(self, chat_history):
-        self.memory = create_chat_memory(chat_history)
+    def __init__(self):
         llm = create_llm()
         chat_prompt = create_prompt_from_template(memory_prompt_template)
-        self.llm_chain = create_llm_chain(llm, chat_prompt, self.memory)
+        self.llm_chain = create_llm_chain(llm, chat_prompt)
 
-    def run(self, user_input):
-        return self.llm_chain.run(user_input = user_input,
-                                  history=self.memory.chat_memory.messages,
-                                  stop="<|user|>")
+    def run(self, user_input, chat_history):
+        memory = create_chat_memory(chat_history)
+        return self.llm_chain.invoke(input={"user_input" : user_input, "history" : memory.chat_memory.messages},
+                                     stop=["<|user|>", "Human:"])['text']
 
-def load_pdf_chat_chain(chat_history):
-    return pdfChatChain(chat_history)
+def load_pdf_chat_chain():
+    return pdfChatChain()
 
 def load_retrieval_chain(llm, vector_db):
     return RetrievalQA.from_llm(llm=llm, retriever=vector_db.as_retriever(search_kwargs={"k": config["chat_config"]["number_of_retrieved_documents"]}), verbose=True)
@@ -92,7 +87,7 @@ def create_pdf_chat_runnable(llm, vector_db, prompt):
 
 class pdfChatChain:
 
-    def __init__(self, chat_history):
+    def __init__(self,):
         vector_db = load_vectordb(create_embeddings())
         llm = create_llm()
         #llm = load_ollama_model()
@@ -103,3 +98,53 @@ class pdfChatChain:
         print("Pdf chat chain is running...")
         memory = create_chat_memory(chat_history)
         return self.llm_chain.invoke(input={"human_input" : user_input, "history" : memory.chat_memory.messages})
+
+
+# ## Revised
+# from langchain.chains.llm import LLMChain
+# from langchain.chains.conversational_retrieval.base import ConversationalRetrievalChain
+# from langchain.chains.combine_documents.stuff import StuffDocumentsChain
+# from langchain_core.prompts import PromptTemplate
+
+# class pdfChatChain_revised:
+#     def __init__(self, chat_history):
+#         self.chat_history= chat_history
+#         retriever = load_vectordb(create_embeddings()).as_retriever()
+#         llm = create_llm()
+
+#         # retrieval part
+#         document_prompt = PromptTemplate(
+#             input_variables=["page_content"],
+#             template="{page_content}"
+#         )
+#         document_variable_name = "context"
+#         retrieve_prompt = PromptTemplate.from_template(
+#             "<|system|>You are a content writer. Retrieve information from the given content "
+#             "and summarize it.</s>"
+#             "<|user|>"
+#             "{context}</s>"
+#             "<|assistant|>"
+#         )
+#         llm_chain = LLMChain(llm=llm, prompt=retrieve_prompt)
+#         pdf_chain = StuffDocumentsChain(
+#             llm_chain=llm_chain,
+#             document_prompt=document_prompt,
+#             document_variable_name=document_variable_name
+#         )
+
+#         template = (
+#             "<|system|>Combine the chat history and follow up question into a standalone question. Chat History: {chat_history}</s>"
+#             "<|user|>"
+#             "Follow up question: {question} </s>"
+#             "<|assistant|>"
+#         )
+#         prompt = PromptTemplate.from_template(template)
+#         question_generator_chain = LLMChain(llm=llm, prompt=prompt)
+#         self.chain = ConversationalRetrievalChain(
+#             combine_docs_chain=pdf_chain,
+#             retriever=retriever,
+#             question_generator=question_generator_chain,
+#         )
+    
+#     def run(self, query):
+#         return self.chain({"question": query, "chat_history":self.chat_history.messages})['answer']

@@ -4,9 +4,14 @@ from langchain_community.chat_message_histories import StreamlitChatMessageHisto
 from pdf_hundler import add_documents_to_db
 import yaml
 import os
-from utils import save_chat_history_json, load_chat_history_json, get_timestamp
+from db_operations import save_text_message, load_messages, init_db, delete_chat_history
+from db_operations import get_all_chat_history_ids, close_db_connection, load_last_k_text_messages
+import sqlite3 as sql
+from utils import get_timestamp
 import warnings
 warnings.filterwarnings("ignore")
+
+init_db()
 
 with open("config.yaml", "r") as f:
     config = yaml.safe_load(f)
@@ -19,28 +24,44 @@ def set_send_input():
     st.session_state.send_input = True
     clear_input_field()
 
-def load_chain(_chat_history):
+@st.cache_resource
+def load_chain():
     if st.session_state.pdf_chat == True:
-        return load_pdf_chat_chain(_chat_history)
-    return load_normal_chain(_chat_history)
+        return load_pdf_chat_chain()
+    return load_normal_chain()
 
 def delete_chat_session_history():
-    os.system(f"rm {os.curdir}\chat_sessions\{st.session_state.session_key}")
+    delete_chat_history(st.session_state.session_key)
     st.session_state.session_index_tracker = "new_session"
     st.session_state.session_key = "new_session"
 
 def save_chat_history():
     if st.session_state.history != []:
         if st.session_state.session_key == "new_session":
-            st.session_state.new_session_key = get_timestamp()+".json"
-            save_chat_history_json(st.session_state.history, config['chat_history_path']+st.session_state.new_session_key)
+            st.session_state.new_session_key = get_timestamp()
+            histories = st.session_state.history[-2:]
+            for hist in histories:
+                if not isinstance(hist, dict):
+                    hist = hist.dict()
+                if 'type' in hist.keys():
+                    save_text_message(st.session_state.new_session_key, hist['type'], hist['content'])
+                else:
+                    save_text_message(st.session_state.new_session_key, hist['sender_type'], hist['content'])
         else:
-            save_chat_history_json(st.session_state.history, config['chat_history_path']+st.session_state.session_key)
+            histories = st.session_state.history[-2:]
+            for hist in histories:
+                if not isinstance(hist, dict):
+                    hist = hist.dict()
+                if 'type' in hist.keys():
+                    save_text_message(st.session_state.session_key, hist['type'], hist['content'])
+                else:
+                    save_text_message(st.session_state.session_key, hist['sender_type'], hist['content'])
 
 def track_index():
     st.session_state.session_index_tracker = st.session_state.session_key
 
 def clear_cache():
+    st.cache_resource.clear()
     st.cache_data.clear()
 
 def toggle_pdf_chat():
@@ -49,11 +70,8 @@ def toggle_pdf_chat():
     clear_cache()
 
 def main():
-    st.title("NoteBook Assistant")
+    st.title("Private Assistant")
     chat_container = st.container()
-    st.sidebar.title("Chat Sessions")
-    
-    chat_sessions = ["new_session"] + os.listdir(config['chat_history_path'])
     
     if "send_input" not in st.session_state:
         st.session_state.uploaded = False
@@ -62,13 +80,18 @@ def main():
         st.session_state.user_question = ""
         st.session_state.new_session_key = None
         st.session_state.session_index_tracker = "new_session"
+        st.session_state.db_conn = sql.connect(config['chat_sessions_database_path'], check_same_thread=False)
     if st.session_state.session_key == "new_session" and st.session_state.new_session_key != None:
         st.session_state.session_index_tracker = st.session_state.new_session_key
         st.session_state.new_session_key = None
     
+    st.sidebar.title("Chat Sessions")
+    
+    chat_sessions = ["new_session"] + get_all_chat_history_ids()#os.listdir(config['chat_history_path'])
+
     index = chat_sessions.index(st.session_state.session_index_tracker)
     st.sidebar.selectbox("Select a chat session", chat_sessions, key="session_key", index=index, on_change=track_index)
-    st.sidebar.toggle("Notebook", key="pdf_chat", value=False)
+    st.sidebar.toggle("PDF Chat", key="pdf_chat", value=False)
     upload_pdf = st.sidebar.file_uploader("Upload pdf file", accept_multiple_files=True,
                                           type=['pdf'], key="pdf_upload",
                                           on_change=toggle_pdf_chat)
@@ -81,12 +104,12 @@ def main():
     st.session_state.uploaded = False
 
     if st.session_state.session_key != "new_session":
-        st.session_state.history = load_chat_history_json(config['chat_history_path']+st.session_state.session_key)
+        st.session_state.history = load_messages(st.session_state.session_key)
     else:
         st.session_state.history = []
 
     chat_history = StreamlitChatMessageHistory(key="history")
-    llm_chain = load_chain(chat_history)
+    llm_chain = load_chain()
     user_input = st.text_input("Type your message here: ", key="user_input")
 
     send_button = st.button("Send", key="send_button", on_click=set_send_input)
@@ -94,22 +117,21 @@ def main():
     if send_button or st.session_state.send_input:
         if st.session_state.user_question != "":
             with chat_container:
-                if st.session_state.pdf_chat:
-                    # st.chat_message("user").write(st.session_state.user_question)
-                    llm_response = llm_chain.run(st.session_state.user_question, chat_history)
-                    chat_history.add_user_message(st.session_state.user_question)
-                    chat_history.add_ai_message(llm_response)
-                    # st.chat_message("Bot").write(llm_response)
-                else:
-                    llm_response = llm_chain.run(st.session_state.user_question)
+                llm_response = llm_chain.run(st.session_state.user_question, chat_history)
+                chat_history.add_user_message(st.session_state.user_question)
+                chat_history.add_ai_message("" if llm_response is None else llm_response)
+                save_chat_history()
                 st.session_state.user_question = ""
     with chat_container:
-        if chat_history.messages != []:
-            st.write("Chat History")
             for msg in chat_history.messages:
-                st.chat_message(msg.type).write(msg.content)
-
-    save_chat_history()
+                if not isinstance(msg, dict):
+                    msg = msg.dict()
+                if "type" in msg:
+                    st.chat_message(msg['type']).write(msg['content'])
+                else:
+                    st.chat_message(msg['sender_type']).write(msg['content'])
+    if (st.session_state.session_key == "new_session") and (st.session_state.new_session_key != None):
+        st.rerun()
     
 if __name__ == "__main__":
     main()

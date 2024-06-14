@@ -2,6 +2,12 @@ import json
 from datetime import datetime
 from langchain.schema.messages import HumanMessage, AIMessage
 import requests
+import yaml
+
+def load_config():
+    with open("config.yaml", "r") as f:
+        config = yaml.safe_load(f)
+    return config
 
 def save_chat_history_json(chat_history, file_path):
     with open(file_path, 'w') as f:

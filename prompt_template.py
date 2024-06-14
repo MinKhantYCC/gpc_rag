@@ -5,7 +5,7 @@ memory_prompt_template = """<|system|>You are an AI chatbot having a conversatio
 <|assistant|>
 """
 
-pdf_chat_prompt = """<|system|> Answer the user question based on the given context. Also consider the chat history.
+pdf_chat_prompt = """<|system|> Answer the user question based on the given context. Also consider the chat history. If you can't find the answer in the context, reply you do not know.
 Chat history: {history}
 Context: {context}</s>
 <|user|>

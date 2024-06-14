@@ -17,3 +17,4 @@ chat_config:
   number_of_retrieved_documents: 3
 
 chat_history_path: "chat_sessions/"
+chat_sessions_database_path: "./chat_sessions/chat_sessions.db"
