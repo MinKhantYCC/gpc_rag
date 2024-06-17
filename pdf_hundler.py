@@ -2,6 +2,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema.document import Document
 from llm_chains import load_vectordb, create_embeddings
 from langchain_community.document_loaders import PyPDFLoader
+import streamlit as st
 import pypdfium2
 
 def get_pdf_texts(pdf_bytes):
@@ -31,8 +32,15 @@ def get_document_chunks(text_list):
 
 def add_documents_to_db(pdf_bytes):
     print("Adding Document to DB...")
-    texts = get_pdf_texts(pdf_bytes)
+    pdf_files = []
+    for file in pdf_bytes:
+        ext = file.name.split(".")[-1]
+        print(ext)
+        if ext == "pdf":
+            pdf_files.append(file)
+            texts = get_pdf_texts(pdf_bytes)
+        elif ext == "txt":
+            texts = [str(file.getvalue())]
     documents = get_document_chunks(texts)
     vector_db = load_vectordb(create_embeddings())
     vector_db.add_documents(documents)
-

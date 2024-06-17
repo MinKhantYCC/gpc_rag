@@ -93,7 +93,7 @@ def main():
     st.sidebar.selectbox("Select a chat session", chat_sessions, key="session_key", index=index, on_change=track_index)
     st.sidebar.toggle("PDF Chat", key="pdf_chat", value=False)
     upload_pdf = st.sidebar.file_uploader("Upload pdf file", accept_multiple_files=True,
-                                          type=['pdf'], key="pdf_upload",
+                                          type=['pdf', 'txt'], key="pdf_upload",
                                           on_change=toggle_pdf_chat)
     st.sidebar.button("Delete Chat Session", on_click=delete_chat_session_history)
     st.sidebar.button("Clear Cache", on_click=clear_cache)
