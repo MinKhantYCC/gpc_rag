@@ -6,12 +6,7 @@ from langchain.prompts import PromptTemplate
 from langchain_community.llms.ctransformers import CTransformers
 from langchain_community.vectorstores import Chroma
 
-from langchain.chains.retrieval import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_core.prompts import ChatPromptTemplate
-
 from prompt_template import memory_prompt_template, pdf_chat_prompt
-import chromadb
 import yaml
 from utils import download_large_file
 import os
@@ -98,53 +93,3 @@ class pdfChatChain:
         print("Pdf chat chain is running...")
         memory = create_chat_memory(chat_history)
         return self.llm_chain.invoke(input={"human_input" : user_input, "history" : memory.chat_memory.messages})
-
-
-# ## Revised
-# from langchain.chains.llm import LLMChain
-# from langchain.chains.conversational_retrieval.base import ConversationalRetrievalChain
-# from langchain.chains.combine_documents.stuff import StuffDocumentsChain
-# from langchain_core.prompts import PromptTemplate
-
-# class pdfChatChain_revised:
-#     def __init__(self, chat_history):
-#         self.chat_history= chat_history
-#         retriever = load_vectordb(create_embeddings()).as_retriever()
-#         llm = create_llm()
-
-#         # retrieval part
-#         document_prompt = PromptTemplate(
-#             input_variables=["page_content"],
-#             template="{page_content}"
-#         )
-#         document_variable_name = "context"
-#         retrieve_prompt = PromptTemplate.from_template(
-#             "<|system|>You are a content writer. Retrieve information from the given content "
-#             "and summarize it.</s>"
-#             "<|user|>"
-#             "{context}</s>"
-#             "<|assistant|>"
-#         )
-#         llm_chain = LLMChain(llm=llm, prompt=retrieve_prompt)
-#         pdf_chain = StuffDocumentsChain(
-#             llm_chain=llm_chain,
-#             document_prompt=document_prompt,
-#             document_variable_name=document_variable_name
-#         )
-
-#         template = (
-#             "<|system|>Combine the chat history and follow up question into a standalone question. Chat History: {chat_history}</s>"
-#             "<|user|>"
-#             "Follow up question: {question} </s>"
-#             "<|assistant|>"
-#         )
-#         prompt = PromptTemplate.from_template(template)
-#         question_generator_chain = LLMChain(llm=llm, prompt=prompt)
-#         self.chain = ConversationalRetrievalChain(
-#             combine_docs_chain=pdf_chain,
-#             retriever=retriever,
-#             question_generator=question_generator_chain,
-#         )
-    
-#     def run(self, query):
-#         return self.chain({"question": query, "chat_history":self.chat_history.messages})['answer']

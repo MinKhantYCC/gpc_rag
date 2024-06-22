@@ -3,6 +3,7 @@ from datetime import datetime
 from langchain.schema.messages import HumanMessage, AIMessage
 import requests
 import yaml
+import re
 
 def load_config():
     with open("config.yaml", "r") as f:

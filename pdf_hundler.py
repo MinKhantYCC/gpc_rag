@@ -6,7 +6,7 @@ import streamlit as st
 import pypdfium2
 
 def get_pdf_texts(pdf_bytes):
-    return [extract_text_from_pdf(pdf_byte.getvalue()) for pdf_byte in pdf_bytes]
+    return [extract_text_from_pdf(pdf_byte.getvalue()) if not isinstance(pdf_byte,bytes) else extract_text_from_pdf(pdf_byte) for pdf_byte in pdf_bytes]
 
 def extract_text_from_pdf(pdf_byte):
     texts = []
@@ -41,6 +41,20 @@ def add_documents_to_db(pdf_bytes):
             texts = get_pdf_texts(pdf_bytes)
         elif ext == "txt":
             texts = [str(file.getvalue())]
+    documents = get_document_chunks(texts)
+    vector_db = load_vectordb(create_embeddings())
+    vector_db.add_documents(documents)
+
+def add_documents_to_db_api(pdf_bytes, filename):
+    print("Adding Document to DB...")
+    pdf_files = []
+    content_type = filename.split(".")[-1]
+    for file in pdf_bytes:
+        if content_type == "pdf":
+            pdf_files.append(file)
+            texts = get_pdf_texts(pdf_bytes)
+        elif content_type == "txt":
+            texts = [str(file)]
     documents = get_document_chunks(texts)
     vector_db = load_vectordb(create_embeddings())
     vector_db.add_documents(documents)
