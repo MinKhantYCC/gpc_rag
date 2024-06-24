@@ -4,8 +4,8 @@ from langchain_community.chat_message_histories import StreamlitChatMessageHisto
 from pdf_hundler import add_documents_to_db
 import yaml
 import os
-from db_operations import save_text_message, load_messages, init_db, delete_chat_history
-from db_operations import get_all_chat_history_ids, close_db_connection, load_last_k_text_messages
+from db_operations_standalone import save_text_message, load_messages, init_db, delete_chat_history
+from db_operations_standalone import get_all_chat_history_ids
 import sqlite3 as sql
 from utils import get_timestamp
 import warnings
